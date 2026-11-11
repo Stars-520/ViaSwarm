@@ -4,7 +4,7 @@
 
 | 文件 | 作用 |
 |---|---|
-| `xposed_init` | 单行，写入口类的全限定名：`com.hsqs.viaswarm.Hook`。LSPosed 靠它找入口 |
+| `xposed_init` | 单行，写入口类的全限定名：`io.github.stars520.viaswarm.Hook`。LSPosed 靠它找入口 |
 | `swarm-core.js` | 鼠标集群动画（cursor swarm）的核心实现，约 149KB |
 
 ## swarm-core.js
