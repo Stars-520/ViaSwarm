@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace 'com.hsqs.viaswarm'
+    namespace 'io.github.stars520.viaswarm'
     compileSdk 34
 
     // ── 签名配置 ──────────────────────────────────────────
@@ -25,7 +25,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.hsqs.viaswarm"
+        applicationId "io.github.stars520.viaswarm"
         minSdk 24
         targetSdk 34
         versionCode 1
@@ -70,15 +70,20 @@ android {
 }
 
 dependencies {
-    // 不引入任何外部 Xposed 依赖。
+    // ── Xposed API：只编译，绝不打包 ──────────────────────────
+    // LSPosed 会校验模块 APK 内是否自带 de.robv.android.xposed.* 类。
+    // 一旦自带，它直接拒绝加载并报：
+    //   "The Xposed API classes are compiled into the module's APK."
+    //   "This may cause strange issues and must be fixed by the module developer."
     //
-    // 网上的 de.robv.android.xposed:api:82 坐标都依赖 JitPack，
-    // 而 JitPack 对没有构建缓冲的坐标会返回 401，CI 上一挂一个准。
-    //
-    // 这里改用 app/src/main/java/de/robv/android/xposed/ 下的本地 stub：
-    // 只声明接口和空方法体，编译期提供符号，运行时由 LSPosed 注入真实实现。
-    // 好处是构建零外部依赖，任何机器 clone 下来都能直接编。
-    //
-    // 注意：这些 stub 类会被 d8 打进 classes.dex，但 LSPosed 加载模块时
-    // 会用自己的 XposedBridge 覆盖同名类，不会被真正执行。
+    // 所以 stub 源码放在项目根的 stubs/ 目录，由根 build.gradle 的
+    // :xposedStub 任务打成 jar，这里用 compileOnly 引入：
+    // 编译期有符号，运行时由 LSPosed 注入真实实现，dex 里不留这些类。
+    compileOnly files(rootProject.layout.buildDirectory.file('xposed-stub.jar'))
+}
+// 编译前必须先产生 xposed-stub.jar，否则 compileOnly 找不到符号。
+tasks.configureEach { t ->
+    if (t.name.startsWith('compile') && t.name.endsWith('JavaWithJavac')) {
+        t.dependsOn(rootProject.tasks.named('xposedStub'))
+    }
 }
