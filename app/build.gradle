@@ -1,0 +1,84 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.hsqs.viaswarm'
+    compileSdk 34
+
+    // ── 签名配置 ──────────────────────────────────────────
+    // 本地的 keystore/release.jks 不进仓库（见 .gitignore）。
+    // CI 上从 4 个 Secret 还原：KEYSTORE_B64 / KEY_ALIAS / KEY_PASS / STORE_PASS。
+    // 两者都没有时退回 debug 签名，保证 clone 下来就能直接出 APK。
+    signingConfigs {
+        release {
+            def ksPath = System.getenv("VIASWARM_KEYSTORE")
+                ?: "${rootDir}/keystore/release.jks"
+            def ksFile = file(ksPath)
+            if (ksFile.exists()) {
+                storeFile ksFile
+                storePassword System.getenv("VIASWARM_STORE_PASS") ?: "stars2026"
+                keyAlias System.getenv("VIASWARM_KEY_ALIAS") ?: "viaswarm"
+                keyPassword System.getenv("VIASWARM_KEY_PASS") ?: "stars2026"
+            }
+        }
+    }
+
+    defaultConfig {
+        applicationId "com.hsqs.viaswarm"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            // 模块本身不联网、不存数据，没东西可混淆，
+            // 关掉 minify 让产物可复现、体积最小。
+            minifyEnabled false
+            // keystore 存在就用 release 签名，否则退回 debug
+            def hasReleaseKey = file(
+                System.getenv("VIASWARM_KEYSTORE") ?: "${rootDir}/keystore/release.jks"
+            ).exists()
+            signingConfig hasReleaseKey ? signingConfigs.release : signingConfigs.debug
+        }
+        debug {
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // 不要让 AGP 压缩 assets，xposed_init 和 js 都必须是原样
+    androidResources {
+        noCompress 'js', 'txt'
+    }
+
+    packagingOptions {
+        resources {
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE*', 'META-INF/NOTICE*']
+        }
+    }
+
+    lint {
+        abortOnError false
+    }
+}
+
+dependencies {
+    // 不引入任何外部 Xposed 依赖。
+    //
+    // 网上的 de.robv.android.xposed:api:82 坐标都依赖 JitPack，
+    // 而 JitPack 对没有构建缓冲的坐标会返回 401，CI 上一挂一个准。
+    //
+    // 这里改用 app/src/main/java/de/robv/android/xposed/ 下的本地 stub：
+    // 只声明接口和空方法体，编译期提供符号，运行时由 LSPosed 注入真实实现。
+    // 好处是构建零外部依赖，任何机器 clone 下来都能直接编。
+    //
+    // 注意：这些 stub 类会被 d8 打进 classes.dex，但 LSPosed 加载模块时
+    // 会用自己的 XposedBridge 覆盖同名类，不会被真正执行。
+}

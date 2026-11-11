@@ -1,0 +1,7 @@
+// 顶层构建脚本。
+//
+// 为什么要用 AGP 8.x：GitHub Actions 的 ubuntu-latest 自带 JDK 17，
+// AGP 8 要求 JDK 17，版本对上就不必在 CI 里额外装 Java。
+plugins {
+    id 'com.android.application' version '8.5.2' apply false
+}

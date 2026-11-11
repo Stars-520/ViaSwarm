@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ViaSwarm</string>
+    <string name="module_desc">给 Via 浏览器的网页加上光标大军重建效果</string>
+</resources>

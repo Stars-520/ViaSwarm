@@ -1,0 +1,31 @@
+# ─────────────────────────────────────────────
+#  swarm-core.js 随仓库分发
+# ─────────────────────────────────────────────
+#  这个文件是鼠标集群动画（cursor swarm）的核心实现，
+#  放进仓库是为了让 CI 打出来的 APK 开箱即用。
+#  文件自身没有任何 license 声明，授权状态由仓库作者判断。
+#  如果你不想分发它，删掉下面这行注释即可把它排除出仓库。
+# app/src/main/assets/swarm-core.js
+
+# ── Gradle ──
+.gradle/
+build/
+app/build/
+local.properties
+
+# ── IDE ──
+.idea/
+*.iml
+.vscode/
+
+# ── 签名与密钥 ──
+*.jks
+*.keystore
+keystore.properties
+keystore/
+
+# ── 系统垃圾 ──
+.DS_Store
+Thumbs.db
+*.log
+captures/

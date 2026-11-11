@@ -1,0 +1,102 @@
+name: Build APK
+
+# ───────────────────────────────────────────────
+#  触发时机
+# ───────────────────────────────────────────────
+#  push 到 main 时自动构建并把 APK 作为 artifact 上传；
+#  打 tag（v1.0 这种）时额外创建一个 GitHub Release 并附上 APK，
+#  这样别人可以直接在 Releases 页面下载，不用自己编。
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write     # 创建 Release 需要
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 配置 Gradle 缓存
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: 检查 Swarm 核心
+        # swarm-core.js 随仓库分发，正常情况直接能打进去。
+        # 这一步只是兜底：如果你为了体积或授权原因把它从仓库移除，
+        # 可以在仓库 Secret: SWARM_CORE_B64 里存一份 base64，
+        # CI 会自动还原，保证打出来的 APK 功能完整。
+        env:
+          CORE_B64: ${{ secrets.SWARM_CORE_B64 }}
+        run: |
+          TARGET=app/src/main/assets/swarm-core.js
+          if [ -f "$TARGET" ]; then
+            echo "核心已就位: $(wc -c < $TARGET) 字节"
+          elif [ -n "${CORE_B64:-}" ]; then
+            echo "$CORE_B64" | base64 -d > "$TARGET"
+            echo "已从 Secret 还原核心: $(wc -c < $TARGET) 字节"
+          else
+            echo "::warning::仓库里没有 swarm-core.js，也没有配 SWARM_CORE_B64。"
+            echo "::warning::APK 能编译，但装上后点击按钮不会有效果。"
+          fi
+
+      - name: 授予 gradlew 执行权限
+        run: chmod +x ./gradlew || true
+
+      - name: 构建 Release APK
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: 重命名产物
+        run: |
+          mkdir -p out
+          SRC=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          if [ -z "$SRC" ]; then
+            echo "没有找到 APK，构建可能失败"
+            find app/build/outputs -type f | head -20
+            exit 1
+          fi
+          NAME="ViaSwarm-${GITHUB_REF_NAME//\//-}.apk"
+          cp "$SRC" "out/$NAME"
+          echo "APK_NAME=$NAME" >> $GITHUB_ENV
+          ls -la out/
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: ViaSwarm-apk
+          path: out/*.apk
+          retention-days: 30
+
+      - name: 创建 Release（仅打 tag 时）
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.apk
+          generate_release_notes: true
+          body: |
+            ## ViaSwarm ${{ github.ref_name }}
+
+            把 Swarm Rebuild 注入 Via 浏览器的 LSPosed 模块。
+
+            ### 安装
+            1. 下载下方 APK 并安装
+            2. LSPosed 中启用模块，作用域勾选 **Via 浏览器**（`mark.via`）
+            3. 强制停止 Via，重新打开
+
+            ### 使用
+            打开任意网页，右下角出现绿色 **Swarm** 按钮，点击即开始重建。
+
+            > ⚠️ 本 APK 用 CI 的 debug 签名，仅用于测试。
