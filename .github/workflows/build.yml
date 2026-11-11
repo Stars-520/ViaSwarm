@@ -53,10 +53,28 @@ jobs:
             echo "::warning::APK 能编译，但装上后点击按钮不会有效果。"
           fi
 
+      - name: 还原签名密钥
+        # 仓库里不放 keystore。配了 Secret 就用正式签名，
+        # 没配就跳过，构建自动退回 debug 签名（见 app/build.gradle）。
+        env:
+          KEYSTORE_B64: ${{ secrets.VIASWARM_KEYSTORE_B64 }}
+        run: |
+          if [ -n "${KEYSTORE_B64:-}" ]; then
+            mkdir -p keystore
+            echo "$KEYSTORE_B64" | base64 -d > keystore/release.jks
+            echo "已从 Secret 还原 keystore"
+          else
+            echo "未配置 VIASWARM_KEYSTORE_B64，本次使用 debug 签名"
+          fi
+
       - name: 授予 gradlew 执行权限
         run: chmod +x ./gradlew || true
 
       - name: 构建 Release APK
+        env:
+          VIASWARM_STORE_PASS: ${{ secrets.VIASWARM_STORE_PASS }}
+          VIASWARM_KEY_ALIAS: ${{ secrets.VIASWARM_KEY_ALIAS }}
+          VIASWARM_KEY_PASS: ${{ secrets.VIASWARM_KEY_PASS }}
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: 重命名产物
