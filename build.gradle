@@ -5,3 +5,37 @@
 plugins {
     id 'com.android.application' version '8.5.2' apply false
 }
+
+// ───────────────────────────────────────────────────────────
+//  Xposed API stub：真正编译成 jar
+// ───────────────────────────────────────────────────────────
+//  LSPosed 会检查模块 APK 内是否带 de.robv.android.xposed.* 类，
+//  带的话直接拒绝加载并报：
+//    "The Xposed API classes are compiled into the module's APK."
+//  所以 stub 只参与编译，绝不能进 dex。
+//
+//  做法：先用 JavaCompile 把 stubs/ 编成 class，再用 Jar 打成
+//  build/xposed-stub.jar，app 侧以 compileOnly files() 引用。
+//  compileOnly 的产物不会被 d8 打进 classes.dex。
+
+def stubClassesDir = layout.buildDirectory.dir('xposed-stub-classes')
+def stubJarFile = layout.buildDirectory.file('xposed-stub.jar')
+
+tasks.register('compileXposedStub', JavaCompile) {
+    description = 'Compile Xposed API stubs (compile-time only)'
+    source = fileTree('stubs') { include '**/*.java' }
+    classpath = files()
+    destinationDirectory = stubClassesDir
+    // stub 里没用到 Android API，纯 Java 即可，不需要 android.jar
+    options.encoding = 'UTF-8'
+    sourceCompatibility = '17'
+    targetCompatibility = '17'
+}
+
+tasks.register('xposedStub', Jar) {
+    description = 'Package Xposed API stubs into a jar for compileOnly'
+    dependsOn 'compileXposedStub'
+    archiveFileName = 'xposed-stub.jar'
+    destinationDirectory = layout.buildDirectory
+    from stubClassesDir
+}
