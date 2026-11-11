@@ -39,6 +39,22 @@ Via 是个好浏览器，但它没法跑那些花里胡哨的页面特效。这�
 
 Via 升级后如果失效，见下面「失效了怎么办」。
 
+## 模块信息
+
+| 项 | 值 |
+|---|---|
+| 包名 | `io.github.stars520.viaswarm` |
+| 模块名 | ViaSwarm |
+| 版本 | 1.0 (versionCode 1) |
+| 作用域 | `mark.via` |
+| 许可证 | MIT |
+| 作者 | Stars. |
+| Xposed API | legacy API 82 |
+
+APK 使用固定 release 密钥签名，可直接覆盖升级：
+SHA-256 `fc58822b5fa58865f951a0e2d3046475121cffecab6b6c49fa56bc993a3a0f91`
+
+
 ## 安装
 
 **方法一：下载现成的**
